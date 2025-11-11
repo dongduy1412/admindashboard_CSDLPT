@@ -2,30 +2,54 @@
 
 Hệ thống quản lý nhà trọ với Backend API (Node.js/Express) và Frontend Dashboard (React.js)
 
-## Yêu cầu hệ thống
+## 📋 Tính năng
+
+- ✅ Dashboard tổng quan với thống kê và biểu đồ
+- ✅ Quản lý Khu trọ, Phòng trọ
+- ✅ Quản lý Khách thuê, Hợp đồng
+- ✅ Quản lý Hóa đơn (tự động tính tổng)
+- ✅ Quản lý Người dùng với phân quyền
+- ✅ RESTful API đầy đủ
+- ✅ Responsive UI với Material-UI
+
+## 🛠 Công nghệ sử dụng
+
+### Backend
+- Node.js & Express.js
+- SQL Server (mssql driver)
+- CORS & dotenv
+
+### Frontend
+- React 18 + Vite
+- Material-UI (MUI)
+- React Router v6
+- Axios
+- Recharts
+
+## 📦 Yêu cầu hệ thống
 
 - Node.js v18+ 
 - SQL Server 2019+
 - npm hoặc yarn
 
-## Cài đặt
+## 🚀 Cài đặt
 
-### 1. Backend Setup
+### 1. Clone repository
 
 ```bash
-cd F:\admin_dashboard
+git clone https://github.com/dongduy1412/admindashboard_CSDLPT.git
+cd admindashboard_CSDLPT
+```
+
+### 2. Backend Setup
+
+```bash
 npm install
 ```
 
-### 2. Cấu hình Database
+### 3. Cấu hình Database
 
-Tạo file `.env` từ `.env.example`:
-
-```bash
-copy .env.example .env
-```
-
-Chỉnh sửa file `.env` với thông tin SQL Server của bạn:
+Tạo file `.env` trong thư mục root với nội dung sau:
 
 ```
 DB_SERVER=localhost
@@ -183,17 +207,14 @@ frontend/
 
 ### Terminal 1 - Backend:
 ```bash
-cd F:\admin_dashboard
+# Từ thư mục root
 npm install
-# Tạo file .env và cấu hình database
-copy .env.example .env
-# Chỉnh sửa .env với thông tin SQL Server
 npm start
 ```
 
 ### Terminal 2 - Frontend:
 ```bash
-cd F:\admin_dashboard\frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -258,10 +279,38 @@ Sau đó truy cập: http://localhost:3000
 - Axios - HTTP client
 - Recharts - Biểu đồ
 
-## Lưu ý
+## ⚠️ Lưu ý
 
-1. Đảm bảo SQL Server đang chạy và database QuanLyTro đã được tạo
-2. Cập nhật thông tin kết nối database trong file `.env`
+1. Đảm bảo SQL Server đang chạy và database đã được tạo
+2. Tạo và cấu hình file `.env` với thông tin SQL Server của bạn
 3. Nếu sử dụng SQL Server Authentication, enable "SQL Server and Windows Authentication mode"
 4. Backend phải chạy trước khi chạy Frontend
-5. Nếu gặp lỗi CORS, kiểm tra lại cấu hình CORS trong server.js
+5. Nếu gặp lỗi CORS, kiểm tra lại cấu hình CORS trong `server.js`
+
+## 📝 Database Schema
+
+Xem file `table.txt` và `Insert.txt` để biết cấu trúc database và dữ liệu mẫu.
+
+## 📸 Screenshots
+
+### Dashboard
+Trang tổng quan với thống kê và biểu đồ
+
+### Quản lý Phòng trọ
+Danh sách phòng với filter theo khu trọ và tình trạng
+
+### Quản lý Hóa đơn
+Tạo và quản lý hóa đơn với tự động tính tổng tiền
+
+## 🤝 Đóng góp
+
+Mọi đóng góp đều được chào đón! Vui lòng tạo Pull Request hoặc Issue.
+
+## 📄 License
+
+MIT License - Xem file LICENSE để biết thêm chi tiết.
+
+## 👨‍💻 Tác giả
+
+- GitHub: [@dongduy1412](https://github.com/dongduy1412)
+- Repository: [admindashboard_CSDLPT](https://github.com/dongduy1412/admindashboard_CSDLPT)

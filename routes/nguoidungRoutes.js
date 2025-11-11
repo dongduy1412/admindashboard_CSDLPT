@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const nguoidungController = require('../controllers/nguoidungController');
 
+router.post('/login', nguoidungController.login);
 router.get('/', nguoidungController.getAllNguoidung);
 router.get('/:id', nguoidungController.getNguoidungById);
 router.post('/', nguoidungController.createNguoidung);

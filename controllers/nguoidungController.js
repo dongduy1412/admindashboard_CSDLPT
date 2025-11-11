@@ -1,5 +1,45 @@
 const { getConnection, sql } = require('../config/database');
 
+const login = async (req, res) => {
+    try {
+        const { tendangnhap, matkhau } = req.body;
+        
+        if (!tendangnhap || !matkhau) {
+            return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+        }
+        
+        const pool = await getConnection();
+        const result = await pool.request()
+            .input('tendangnhap', sql.VarChar, tendangnhap)
+            .input('matkhau', sql.NVarChar, matkhau)
+            .query(`
+                SELECT n.Manguoidung, n.Tendangnhap, n.Vaitro, n.Makhutro, k.Tenkhutro
+                FROM Nguoidung n
+                LEFT JOIN Khutro k ON n.Makhutro = k.Makhutro
+                WHERE n.Tendangnhap = @tendangnhap AND n.Matkhau = @matkhau
+            `);
+        
+        if (result.recordset.length === 0) {
+            return res.status(401).json({ error: 'Tên đăng nhập hoặc mật khẩu không đúng' });
+        }
+        
+        const user = result.recordset[0];
+        res.json({
+            message: 'Đăng nhập thành công',
+            user: {
+                manguoidung: user.Manguoidung,
+                tendangnhap: user.Tendangnhap,
+                vaitro: user.Vaitro,
+                makhutro: user.Makhutro,
+                tenkhutro: user.Tenkhutro
+            }
+        });
+    } catch (err) {
+        console.error('Error during login:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const getAllNguoidung = async (req, res) => {
     try {
         const pool = await getConnection();
@@ -48,8 +88,8 @@ const createNguoidung = async (req, res) => {
             .input('vaitro', sql.NVarChar, vaitro)
             .input('makhutro', sql.NVarChar, makhutro)
             .query(`
-                INSERT INTO Nguoidung (Tendangnhap, Matkhau, Vaitro, Makhutro) 
-                VALUES (@tendangnhap, @matkhau, @vaitro, @makhutro)
+                INSERT INTO Nguoidung (rowguid, Tendangnhap, Matkhau, Vaitro, Makhutro) 
+                VALUES (NEWID(), @tendangnhap, @matkhau, @vaitro, @makhutro)
             `);
         
         const result = await pool.request().query('SELECT SCOPE_IDENTITY() AS Manguoidung');
@@ -110,6 +150,7 @@ const deleteNguoidung = async (req, res) => {
 };
 
 module.exports = {
+    login,
     getAllNguoidung,
     getNguoidungById,
     createNguoidung,

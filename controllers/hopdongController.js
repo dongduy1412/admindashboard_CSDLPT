@@ -101,38 +101,70 @@ const createHopdong = async (req, res) => {
 };
 
 const updateHopdong = async (req, res) => {
-    try {
-        const {ngaybatdau, ngayketthuc, tiencoc, maphong, listkhachthue } = req.body;
-        const pool = await getConnection();
-        const result = await pool.request()
-            .input('mahopdong', sql.NVarChar(50), req.params.id)
-            .input('ngaybatdau', sql.Date, ngaybatdau)
-            .input('ngayketthuc', sql.Date, ngayketthuc)
-            .input('tiencoc', sql.Decimal(18, 2), tiencoc)
-            .input('maphong', sql.NVarChar, maphong)
-            .query(`
-                UPDATE Hopdong 
-                SET Ngaybatdau = @ngaybatdau, Ngayketthuc = @ngayketthuc, 
-                    Tiencoc = @tiencoc, Maphong = @maphong 
-                WHERE Mahopdong = @mahopdong
-            `);
-        
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ error: 'Hopdong not found' });
-        }
-        res.json({ message: 'Hopdong updated successfully' });
-    } catch (err) {
-        console.error('Error updating Hopdong:', err);
-        res.status(500).json({ error: err.message });
+  const mahopdong = req.params.id;
+  const { ngaybatdau, ngayketthuc, tiencoc, maphong, listkhachthue} = req.body;
+
+  try {
+    const pool = await getConnection();
+
+    // 1. Cập nhật bảng Hopdong
+    const result = await pool.request()
+      .input('mahopdong', sql.NVarChar(50), mahopdong)
+      .input('ngaybatdau', sql.Date, ngaybatdau)
+      .input('ngayketthuc', sql.Date, ngayketthuc || null) // cho phép null
+      .input('tiencoc', sql.Decimal(18, 2), tiencoc)
+      .input('maphong', sql.NVarChar(50), maphong)
+      .query(`
+        UPDATE Hopdong 
+        SET Ngaybatdau = @ngaybatdau, 
+            Ngayketthuc = @ngayketthuc, 
+            Tiencoc = @tiencoc, 
+            Maphong = @maphong 
+        WHERE Mahopdong = @mahopdong
+      `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Hopdong not found' });
     }
+
+    // 2. Xoá các dòng cũ trong bảng Hopdong_Khachthue
+    await pool.request()
+      .input('mahopdong', sql.NVarChar(50), mahopdong)
+      .query(`
+        DELETE FROM Hopdong_Khachthue
+        WHERE Mahopdong = @mahopdong
+      `);
+
+    // 3. Thêm lại danh sách khách thuê mới
+    for (let i = 0; i < listkhachthue.length; i++) {
+      await pool.request()
+        .input('mahopdong', sql.NVarChar(50), mahopdong)
+        .input('makhachthue', sql.NVarChar(50), listkhachthue[i])
+        .input('ngaythamgia', sql.Date, new Date())
+        .input('lakhachchinh', sql.Bit, i === 0 ? 1 : 0) // khách đầu là chính
+        .query(`
+          INSERT INTO Hopdong_Khachthue (Mahopdong, Makhachthue, Lakhachchinh, Ngaythamgia) 
+          VALUES (@mahopdong, @makhachthue, @lakhachchinh, @ngaythamgia)
+        `);
+    }
+
+    res.json({ message: 'Hopdong updated successfully' });
+  } catch (err) {
+    console.error('Error updating Hopdong:', err);
+    res.status(500).json({ error: err.message });
+  }
 };
+
 
 const deleteHopdong = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.request()
             .input('mahopdong', sql.NVarChar(50), req.params.id)
-            .query('DELETE FROM Hopdong WHERE Mahopdong = @mahopdong');
+            .query(`
+        DELETE FROM Hopdong_Khachthue WHERE Mahopdong = @mahopdong;
+        DELETE FROM Hopdong WHERE Mahopdong = @mahopdong;
+      `);
         
         if (result.rowsAffected[0] === 0) {
             return res.status(404).json({ error: 'Hopdong not found' });

@@ -40,43 +40,43 @@ export default function Hopdong() {
     ngayketthuc: '',
     tiencoc: '',
     maphong: '',
-    khachthueList: [],
-    khachthuechinh:''
+    khachthueList: [''],
+    khachthuechinh: '',
   });
   const [hopdongDetail, setHopdongDetail] = useState([]);
 
+  // ================== FETCH DATA ==================
   useEffect(() => {
     fetchHopdong();
     fetchPhongtro();
     fetchKhachthue();
-    fetchKhachThue_Hopdong();
   }, []);
 
   const fetchHopdong = async () => {
-  try {
-    const response = await hopdongAPI.getAll();
-    const data = response.data;
+    try {
+      const response = await hopdongAPI.getAll();
+      const data = response.data;
 
-    // Map để thêm tên khách chính vào mỗi hợp đồng
-    const dataWithKhachChinh = await Promise.all(
-      data.map(async (hd) => {
-        try {
-          const detailRes = await hopdongAPI.getWithKhachthue(hd.Mahopdong);
-          const khachChinh = detailRes.data.find(k => k.Lakhachchinh)?.Hoten || '';
-          return { ...hd, Khachchinh: khachChinh };
-        } catch (err) {
-          console.error('Error fetching hopdong detail:', err);
-          return { ...hd, Khachchinh: '' };
-        }
-      })
-    );
-    console.log(dataWithKhachChinh)
-    setHopdongList(dataWithKhachChinh);
-  } catch (error) {
-    console.error('Error fetching hopdong:', error);
-  }
-};
+      // Map để thêm tên khách chính vào mỗi hợp đồng
+      const dataWithKhachChinh = await Promise.all(
+        data.map(async (hd) => {
+          try {
+            const detailRes = await hopdongAPI.getWithKhachthue(hd.Mahopdong);
+            const khachChinh = detailRes.data.find((k) => k.Lakhachchinh)
+              ?.Hoten || '';
+            return { ...hd, Khachchinh: khachChinh };
+          } catch (err) {
+            console.error('Error fetching hopdong detail:', err);
+            return { ...hd, Khachchinh: '' };
+          }
+        })
+      );
 
+      setHopdongList(dataWithKhachChinh);
+    } catch (error) {
+      console.error('Error fetching hopdong:', error);
+    }
+  };
 
   const fetchKhachthue = async () => {
     try {
@@ -86,16 +86,20 @@ export default function Hopdong() {
       console.error('Error fetching khachthue:', error);
     }
   };
-let khList = []
+
+  // Lấy danh sách Makhachthue theo Mahopdong
   const fetchKhachThue_Hopdong = async (mahopdong) => {
     try {
       const response = await khachthueAPI.getByHopdong(mahopdong);
-      khList = response.data;
+      console.log('Khách thuê theo HĐ', mahopdong, response.data);
+      // Trả về mảng Makhachthue
+      return response.data.map((k) => k.Makhachthue);
     } catch (error) {
-      console.error('Error fetching khachthue:', error);
+      console.error('Error fetching khachthue by hopdong:', error);
+      return [];
     }
-  }
-console.log(khList);
+  };
+
   const fetchPhongtro = async () => {
     try {
       const response = await phongtroAPI.getAllOK();
@@ -105,7 +109,7 @@ console.log(khList);
     }
   };
 
-
+  // ================== HANDLERS ==================
 
   const handleViewDetail = async (mahopdong) => {
     try {
@@ -117,19 +121,27 @@ console.log(khList);
     }
   };
 
-  const handleOpenDialog = (hopdong = null) => {
+  // mở dialog: nếu có hopdong => SỬA, không có => THÊM
+  const handleOpenDialog = async (hopdong = null) => {
     if (hopdong) {
-      console.log(khList);
+      // EDIT MODE
+      setEditMode(true);
+
+      // Lấy danh sách khách thuê theo hợp đồng
+      const khList = await fetchKhachThue_Hopdong(hopdong.Mahopdong);
+
       setCurrentHopdong({
         mahopdong: hopdong.Mahopdong,
         ngaybatdau: hopdong.Ngaybatdau?.split('T')[0] || '',
         ngayketthuc: hopdong.Ngayketthuc?.split('T')[0] || '',
         tiencoc: hopdong.Tiencoc,
         maphong: hopdong.Maphong,
-        khachthueList: khList || [],
+        khachthueList: khList.length ? khList : [''],
+        khachthuechinh: '', // nếu sau này cần đánh dấu khách chính
       });
-      setEditMode(true);
     } else {
+      // ADD MODE
+      setEditMode(false);
       setCurrentHopdong({
         mahopdong: '',
         ngaybatdau: '',
@@ -137,9 +149,10 @@ console.log(khList);
         tiencoc: '',
         maphong: '',
         khachthueList: [''],
+        khachthuechinh: '',
       });
-      setEditMode(false);
     }
+
     setOpenDialog(true);
   };
 
@@ -148,23 +161,25 @@ console.log(khList);
   };
 
   const handleSave = async () => {
-    console.log(currentHopdong);
+    console.log('Saving hopdong:', currentHopdong);
     try {
       const data = {
         ...currentHopdong,
         ngayketthuc: currentHopdong.ngayketthuc || null,
-        listkhachthue: currentHopdong.khachthueList.filter(k => k), // loại bỏ rỗng
+        listkhachthue: currentHopdong.khachthueList.filter((k) => k), // loại bỏ rỗng
       };
+
       if (editMode) {
         await hopdongAPI.update(currentHopdong.mahopdong, data);
       } else {
         await hopdongAPI.create(data);
       }
-      fetchHopdong();
+
+      await fetchHopdong();
       handleCloseDialog();
     } catch (error) {
       console.error('Error saving hopdong:', error);
-      alert('Có lỗi xảy ra: ' + error.response?.data?.error || error.message);
+      alert('Có lỗi xảy ra: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -175,21 +190,30 @@ console.log(khList);
         fetchHopdong();
       } catch (error) {
         console.error('Error deleting hopdong:', error);
-        alert('Có lỗi xảy ra: ' + error.response?.data?.error || error.message);
+        alert('Có lỗi xảy ra: ' + (error.response?.data?.error || error.message));
       }
     }
   };
 
   const formatCurrency = (amount) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+    }).format(amount);
 
-  const formatDate = (dateString) => (!dateString ? '' : new Date(dateString).toLocaleDateString('vi-VN'));
+  const formatDate = (dateString) =>
+    !dateString ? '' : new Date(dateString).toLocaleDateString('vi-VN');
 
+  // ================== RENDER ==================
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h4">Quản lý Hợp đồng</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
           Thêm hợp đồng
         </Button>
       </Box>
@@ -218,13 +242,22 @@ console.log(khList);
                 <TableCell>{formatDate(row.Ngayketthuc)}</TableCell>
                 <TableCell align="right">{row.Khachchinh}</TableCell>
                 <TableCell align="right">
-                  <IconButton color="info" onClick={() => handleViewDetail(row.Mahopdong)}>
+                  <IconButton
+                    color="info"
+                    onClick={() => handleViewDetail(row.Mahopdong)}
+                  >
                     <VisibilityIcon />
                   </IconButton>
-                  <IconButton color="primary" onClick={() => handleOpenDialog(row)}>
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleOpenDialog(row)}
+                  >
                     <EditIcon />
                   </IconButton>
-                  <IconButton color="error" onClick={() => handleDelete(row.Mahopdong)}>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDelete(row.Mahopdong)}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 </TableCell>
@@ -234,137 +267,341 @@ console.log(khList);
         </Table>
       </TableContainer>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editMode ? 'Chỉnh sửa hợp đồng' : 'Thêm hợp đồng mới'}</DialogTitle>
+      {/* Dialog Thêm / Sửa HĐ */}
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {editMode ? 'Chỉnh sửa hợp đồng' : 'Thêm hợp đồng mới'}
+        </DialogTitle>
+
         <DialogContent>
-          <FormControl fullWidth margin="dense">
-            
+          {editMode ? (
+            <>
+              {/* ====== FORM CHỈNH SỬA ====== */}
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Phòng trọ</InputLabel>
+                <Select
+                  value={currentHopdong.maphong}
+                  label="Phòng trọ"
+                  onChange={(e) =>
+                    setCurrentHopdong({
+                      ...currentHopdong,
+                      maphong: e.target.value,
+                    })
+                  }
+                  disabled
+                >
+                  {phongtroList.map((phong) => (
+                    <MenuItem key={phong.Maphong} value={phong.Maphong}>
+                      {phong.Tenkhutro} - {phong.Tenphong}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            <InputLabel>Phòng trọ</InputLabel>
-            
-            <Select
-              value={currentHopdong.maphong}
-              label="Phòng trọ"
-              onChange={(e) => setCurrentHopdong({ ...currentHopdong, maphong: e.target.value })}
-            >
-              {phongtroList.map((phong) => (
-                <MenuItem key={phong.Maphong} value={phong.Maphong}>
-                  {phong.Tenkhutro} - {phong.Tenphong}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            margin="dense"
-            label="Số hợp đồng"
-            type="number"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-             value={
-              currentHopdong.mahopdong
-                ?.replace(`${currentHopdong.maphong}_HD`, "") || ""
-            }
-            onChange={(e) => {
-              let so = e.target.value;
+              <TextField
+                margin="dense"
+                label="Mã hợp đồng"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={currentHopdong.mahopdong}
+                disabled
+              />
 
-              // ép thành số và padding 3 chữ số
-              const soHD = String(parseInt(so || 0, 10)).padStart(3, "0");
+              <TextField
+                margin="dense"
+                label="Ngày bắt đầu"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={currentHopdong.ngaybatdau}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    ngaybatdau: e.target.value,
+                  })
+                }
+              />
+              <TextField
+                margin="dense"
+                label="Ngày kết thúc"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={currentHopdong.ngayketthuc}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    ngayketthuc: e.target.value,
+                  })
+                }
+              />
+              <TextField
+                margin="dense"
+                label="Tiền cọc"
+                type="number"
+                fullWidth
+                value={currentHopdong.tiencoc}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    tiencoc: e.target.value,
+                  })
+                }
+              />
 
-              setCurrentHopdong({
-                ...currentHopdong,
-                mahopdong: `${currentHopdong.maphong}_HD${soHD}`,
-              });
-            }}
-          />
-
-          <TextField
-            margin="dense"
-            label="Ngày bắt đầu"
-            type="date"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            value={currentHopdong.ngaybatdau}
-            onChange={(e) => setCurrentHopdong({ ...currentHopdong, ngaybatdau: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Ngày kết thúc"
-            type="date"
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-            value={currentHopdong.ngayketthuc}
-            onChange={(e) => setCurrentHopdong({ ...currentHopdong, ngayketthuc: e.target.value })}
-          />
-          <TextField
-            margin="dense"
-            label="Tiền cọc"
-            type="number"
-            fullWidth
-            value={currentHopdong.tiencoc}
-            onChange={(e) => setCurrentHopdong({ ...currentHopdong, tiencoc: e.target.value })}
-          />
-
-          {/* Chọn nhiều khách thuê */}
-          <Box sx={{ mt: 2 }}>
-            <Typography>Khách thuê (tối đa 3)</Typography>
-            {currentHopdong.khachthueList.map((khach, index) => (
-              <Box key={index} sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Khách thuê {index + 1}</InputLabel>
-                  <Select
-                    value={khach || ''}
-                    label={`Khách thuê ${index + 1}`}
-                    onChange={(e) => {
-                      const newList = [...currentHopdong.khachthueList];
-                      newList[index] = e.target.value;
-                      setCurrentHopdong({ ...currentHopdong, khachthueList: newList });
-                    }}
+              {/* Khách thuê */}
+              <Box sx={{ mt: 2 }}>
+                <Typography>Khách thuê (tối đa 3)</Typography>
+                {currentHopdong.khachthueList.map((khach, index) => (
+                  <Box
+                    key={index}
+                    sx={{ display: 'flex', alignItems: 'center', mt: 1 }}
                   >
-                    {khachthueList
-                      .filter(
-                        (k) =>
-                          !currentHopdong.khachthueList.includes(k.Makhachthue) || k.Makhachthue === khach
-                      )
-                      .map((k) => (
-                        <MenuItem key={k.Makhachthue} value={k.Makhachthue}>
-                          {k.Hoten} - {k.CCCD}
-                        </MenuItem>
-                      ))}
-                  </Select>
-                </FormControl>
+                    <FormControl fullWidth>
+                      <InputLabel>Khách thuê {index + 1}</InputLabel>
+                      <Select
+                        value={khach || ''}
+                        label={`Khách thuê ${index + 1}`}
+                        onChange={(e) => {
+                          const newList = [...currentHopdong.khachthueList];
+                          newList[index] = e.target.value;
+                          setCurrentHopdong({
+                            ...currentHopdong,
+                            khachthueList: newList,
+                          });
+                        }}
+                      >
+                        {khachthueList
+                          .filter(
+                            (k) =>
+                              !currentHopdong.khachthueList.includes(
+                                k.Makhachthue
+                              ) || k.Makhachthue === khach
+                          )
+                          .map((k) => (
+                            <MenuItem
+                              key={k.Makhachthue}
+                              value={k.Makhachthue}
+                            >
+                              {k.Hoten} - {k.CCCD}
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </FormControl>
 
-                {/* Nút + chỉ hiện ở dòng cuối nếu < 3 khách */}
-                {index === currentHopdong.khachthueList.length - 1 &&
-                  currentHopdong.khachthueList.length < 3 && (
-                    <IconButton
-                      color="primary"
-                      onClick={() =>
-                        setCurrentHopdong({
-                          ...currentHopdong,
-                          khachthueList: [...currentHopdong.khachthueList, ''],
-                        })
-                      }
-                    >
-                      <AddIcon />
-                    </IconButton>
-                  )}
+                    {index === currentHopdong.khachthueList.length - 1 &&
+                      currentHopdong.khachthueList.length < 3 && (
+                        <IconButton
+                          color="primary"
+                          onClick={() =>
+                            setCurrentHopdong({
+                              ...currentHopdong,
+                              khachthueList: [
+                                ...currentHopdong.khachthueList,
+                                '',
+                              ],
+                            })
+                          }
+                        >
+                          <AddIcon />
+                        </IconButton>
+                      )}
 
-                {/* Nút xóa nếu > 1 khách */}
-                {currentHopdong.khachthueList.length > 1 && (
-                  <IconButton
-                    color="error"
-                    onClick={() => {
-                      const newList = currentHopdong.khachthueList.filter((_, i) => i !== index);
-                      setCurrentHopdong({ ...currentHopdong, khachthueList: newList });
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                )}
+                    {currentHopdong.khachthueList.length > 1 && (
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          const newList =
+                            currentHopdong.khachthueList.filter(
+                              (_, i) => i !== index
+                            );
+                          setCurrentHopdong({
+                            ...currentHopdong,
+                            khachthueList: newList,
+                          });
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
+            </>
+          ) : (
+            <>
+              {/* ====== FORM THÊM MỚI ====== */}
+              <FormControl fullWidth margin="dense">
+                <InputLabel>Phòng trọ</InputLabel>
+                <Select
+                  value={currentHopdong.maphong}
+                  label="Phòng trọ"
+                  onChange={(e) =>
+                    setCurrentHopdong({
+                      ...currentHopdong,
+                      maphong: e.target.value,
+                    })
+                  }
+                >
+                  {phongtroList.map((phong) => (
+                    <MenuItem key={phong.Maphong} value={phong.Maphong}>
+                      {phong.Tenkhutro} - {phong.Tenphong}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Số hợp đồng: chỉ nhập số cuối, auto ghép maphong + _HD + số */}
+              <TextField
+                margin="dense"
+                label="Số hợp đồng"
+                type="number"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={
+                  currentHopdong.mahopdong
+                    ?.replace(`${currentHopdong.maphong}_HD`, '') || ''
+                }
+                onChange={(e) => {
+                  let so = e.target.value;
+                  const soHD = String(parseInt(so || 0, 10)).padStart(3, '0');
+
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    mahopdong: `${currentHopdong.maphong}_HD${soHD}`,
+                  });
+                }}
+              />
+
+              <TextField
+                margin="dense"
+                label="Ngày bắt đầu"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={currentHopdong.ngaybatdau}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    ngaybatdau: e.target.value,
+                  })
+                }
+              />
+              <TextField
+                margin="dense"
+                label="Ngày kết thúc"
+                type="date"
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                value={currentHopdong.ngayketthuc}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    ngayketthuc: e.target.value,
+                  })
+                }
+              />
+              <TextField
+                margin="dense"
+                label="Tiền cọc"
+                type="number"
+                fullWidth
+                value={currentHopdong.tiencoc}
+                onChange={(e) =>
+                  setCurrentHopdong({
+                    ...currentHopdong,
+                    tiencoc: e.target.value,
+                  })
+                }
+              />
+
+              {/* Khách thuê */}
+              <Box sx={{ mt: 2 }}>
+                <Typography>Khách thuê (tối đa 3)</Typography>
+                {currentHopdong.khachthueList.map((khach, index) => (
+                  <Box
+                    key={index}
+                    sx={{ display: 'flex', alignItems: 'center', mt: 1 }}
+                  >
+                    <FormControl fullWidth>
+                      <InputLabel>Khách thuê {index + 1}</InputLabel>
+                      <Select
+                        value={khach || ''}
+                        label={`Khách thuê ${index + 1}`}
+                        onChange={(e) => {
+                          const newList = [...currentHopdong.khachthueList];
+                          newList[index] = e.target.value;
+                          setCurrentHopdong({
+                            ...currentHopdong,
+                            khachthueList: newList,
+                          });
+                        }}
+                      >
+                        {khachthueList
+                          .filter(
+                            (k) =>
+                              !currentHopdong.khachthueList.includes(
+                                k.Makhachthue
+                              ) || k.Makhachthue === khach
+                          )
+                          .map((k) => (
+                            <MenuItem
+                              key={k.Makhachthue}
+                              value={k.Makhachthue}
+                            >
+                              {k.Hoten} - {k.CCCD}
+                            </MenuItem>
+                          ))}
+                      </Select>
+                    </FormControl>
+
+                    {index === currentHopdong.khachthueList.length - 1 &&
+                      currentHopdong.khachthueList.length < 3 && (
+                        <IconButton
+                          color="primary"
+                          onClick={() =>
+                            setCurrentHopdong({
+                              ...currentHopdong,
+                              khachthueList: [
+                                ...currentHopdong.khachthueList,
+                                '',
+                              ],
+                            })
+                          }
+                        >
+                          <AddIcon />
+                        </IconButton>
+                      )}
+
+                    {currentHopdong.khachthueList.length > 1 && (
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          const newList =
+                            currentHopdong.khachthueList.filter(
+                              (_, i) => i !== index
+                            );
+                          setCurrentHopdong({
+                            ...currentHopdong,
+                            khachthueList: newList,
+                          });
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
         </DialogContent>
+
         <DialogActions>
           <Button onClick={handleCloseDialog}>Hủy</Button>
           <Button onClick={handleSave} variant="contained">
@@ -374,7 +611,12 @@ console.log(khList);
       </Dialog>
 
       {/* Dialog Chi tiết HĐ */}
-      <Dialog open={openDetailDialog} onClose={() => setOpenDetailDialog(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={openDetailDialog}
+        onClose={() => setOpenDetailDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Chi tiết hợp đồng và khách thuê</DialogTitle>
         <DialogContent>
           {hopdongDetail.length > 0 && (
@@ -413,7 +655,9 @@ console.log(khList);
                             <TableCell>{row.Hoten}</TableCell>
                             <TableCell>{row.CCCD}</TableCell>
                             <TableCell>{row.Sodienthoai}</TableCell>
-                            <TableCell>{row.Lakhachchinh ? 'Có' : 'Không'}</TableCell>
+                            <TableCell>
+                              {row.Lakhachchinh ? 'Có' : 'Không'}
+                            </TableCell>
                           </TableRow>
                         )
                     )}

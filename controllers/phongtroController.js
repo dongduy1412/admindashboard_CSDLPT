@@ -15,6 +15,21 @@ const getAllPhongtro = async (req, res) => {
     }
 };
 
+const getAllOK = async (req, res) => {
+    try {
+        const pool = await getConnection();
+        const result = await pool.request().query(`
+            SELECT p.*, k.Tenkhutro 
+            FROM Phongtro p
+            LEFT JOIN Khutro k ON p.Makhutro = k.Makhutro
+        `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Error getting Phongtro:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 const getPhongtroById = async (req, res) => {
     try {
         const pool = await getConnection();
@@ -106,6 +121,7 @@ const deletePhongtro = async (req, res) => {
 
 module.exports = {
     getAllPhongtro,
+    getAllOK, 
     getPhongtroById,
     createPhongtro,
     updatePhongtro,

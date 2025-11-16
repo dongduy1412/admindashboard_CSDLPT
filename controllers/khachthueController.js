@@ -4,9 +4,8 @@ const getAllKhachthue = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.request().query(`
-            SELECT k.*, n.Tendangnhap, n.Vaitro 
+            SELECT k.* 
             FROM Khachthue k
-            LEFT JOIN Nguoidung n ON k.Manguoidung = n.Manguoidung
         `);
         res.json(result.recordset);
     } catch (err) {
@@ -23,7 +22,6 @@ const getKhachthueById = async (req, res) => {
             .query(`
                 SELECT k.*, n.Tendangnhap, n.Vaitro 
                 FROM Khachthue k
-                LEFT JOIN Nguoidung n ON k.Manguoidung = n.Manguoidung
                 WHERE k.Makhachthue = @makhachthue
             `);
         
@@ -39,7 +37,7 @@ const getKhachthueById = async (req, res) => {
 
 const createKhachthue = async (req, res) => {
     try {
-        const { makhachthue, hoten, cccd, sodienthoai, manguoidung } = req.body;
+        const { makhachthue, hoten, cccd, sodienthoai} = req.body;
         const pool = await getConnection();
         
         await pool.request()
@@ -47,10 +45,9 @@ const createKhachthue = async (req, res) => {
             .input('hoten', sql.NVarChar, hoten)
             .input('cccd', sql.VarChar, cccd)
             .input('sodienthoai', sql.VarChar, sodienthoai)
-            .input('manguoidung', sql.Int, manguoidung)
             .query(`
-                INSERT INTO Khachthue (Makhachthue, Hoten, CCCD, Sodienthoai, Manguoidung) 
-                VALUES (@makhachthue, @hoten, @cccd, @sodienthoai, @manguoidung)
+                INSERT INTO Khachthue (Makhachthue, Hoten, CCCD, Sodienthoai) 
+                VALUES (@makhachthue, @hoten, @cccd, @sodienthoai)
             `);
         
         res.status(201).json({ message: 'Khachthue created successfully', makhachthue });
@@ -103,10 +100,31 @@ const deleteKhachthue = async (req, res) => {
     }
 };
 
+
+const getKhachthueWithHopdong = async (req, res) => {
+    const mahopdong = req.params.id;
+    try {
+        const pool = await getConnection();
+        const result = await pool.request()
+            .input('mahopdong', sql.NVarChar, mahopdong)
+            .query(`
+                SELECT k.*
+                FROM Khachthue k
+                INNER JOIN Hopdong_Khachthue hk ON k.Makhachthue = hk.Makhachthue
+                WHERE hk.Mahopdong = @mahopdong;
+            `);
+        res.json(result.recordset);
+    } catch (err) {
+        console.error('Error getting Khachthue:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 module.exports = {
     getAllKhachthue,
     getKhachthueById,
     createKhachthue,
     updateKhachthue,
-    deleteKhachthue
+    deleteKhachthue,
+    getKhachthueWithHopdong
 };

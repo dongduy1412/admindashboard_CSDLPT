@@ -23,6 +23,7 @@ export const khutroAPI = {
 
 export const phongtroAPI = {
   getAll: () => api.get('/phongtro'),
+  getAllOK: () => api.get('phongtro/ok'),
   getById: (id) => api.get(`/phongtro/${id}`),
   create: (data) => api.post('/phongtro', data),
   update: (id, data) => api.put(`/phongtro/${id}`, data),
@@ -32,6 +33,7 @@ export const phongtroAPI = {
 export const khachthueAPI = {
   getAll: () => api.get('/khachthue'),
   getById: (id) => api.get(`/khachthue/${id}`),
+  getByHopdong : (id) => api.get(`/khachthue/hopdong/${id}`),
   create: (data) => api.post('/khachthue', data),
   update: (id, data) => api.put(`/khachthue/${id}`, data),
   delete: (id) => api.delete(`/khachthue/${id}`),

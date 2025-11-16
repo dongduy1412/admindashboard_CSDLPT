@@ -31,7 +31,6 @@ export default function Khachthue() {
     hoten: '',
     cccd: '',
     sodienthoai: '',
-    manguoidung: '',
   });
 
   useEffect(() => {
@@ -54,7 +53,6 @@ export default function Khachthue() {
         hoten: khachthue.Hoten,
         cccd: khachthue.CCCD,
         sodienthoai: khachthue.Sodienthoai,
-        manguoidung: khachthue.Manguoidung,
       });
       setEditMode(true);
     } else {
@@ -63,7 +61,6 @@ export default function Khachthue() {
         hoten: '',
         cccd: '',
         sodienthoai: '',
-        manguoidung: '',
       });
       setEditMode(false);
     }
@@ -206,21 +203,7 @@ export default function Khachthue() {
               })
             }
           />
-          {!editMode && (
-            <TextField
-              margin="dense"
-              label="Mã người dùng"
-              fullWidth
-              type="number"
-              value={currentKhachthue.manguoidung}
-              onChange={(e) =>
-                setCurrentKhachthue({
-                  ...currentKhachthue,
-                  manguoidung: e.target.value,
-                })
-              }
-            />
-          )}
+        
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Hủy</Button>

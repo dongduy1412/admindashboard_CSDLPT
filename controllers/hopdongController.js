@@ -20,7 +20,7 @@ const getHopdongById = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.request()
-            .input('mahopdong', sql.Int, req.params.id)
+            .input('mahopdong', sql.NVarChar(50), req.params.id)
             .query(`
                 SELECT h.*, p.Tenphong, p.Giathue, k.Tenkhutro
                 FROM Hopdong h
@@ -43,7 +43,7 @@ const getHopdongWithKhachthue = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.request()
-            .input('mahopdong', sql.Int, req.params.id)
+            .input('mahopdong', sql.NVarChar(50), req.params.id)
             .query(`
                 SELECT 
                     h.Mahopdong, h.Ngaybatdau, h.Ngayketthuc, h.Tiencoc,
@@ -66,23 +66,33 @@ const getHopdongWithKhachthue = async (req, res) => {
 };
 
 const createHopdong = async (req, res) => {
+    
     try {
-        const { ngaybatdau, ngayketthuc, tiencoc, maphong } = req.body;
+        const {mahopdong, ngaybatdau, ngayketthuc, tiencoc, maphong, listkhachthue } = req.body;
+        console.log(mahopdong)
         const pool = await getConnection();
         
-        await pool.request()
+        const result = await pool.request()
+            .input('mahopdong', sql.NVarChar(50), mahopdong)
             .input('ngaybatdau', sql.Date, ngaybatdau)
             .input('ngayketthuc', sql.Date, ngayketthuc)
             .input('tiencoc', sql.Decimal(18, 2), tiencoc)
-            .input('maphong', sql.NVarChar, maphong)
+            .input('maphong', sql.NVarChar(10), maphong)
             .query(`
-                INSERT INTO Hopdong (Ngaybatdau, Ngayketthuc, Tiencoc, Maphong) 
-                VALUES (@ngaybatdau, @ngayketthuc, @tiencoc, @maphong)
+                INSERT INTO Hopdong (Mahopdong, Ngaybatdau, Ngayketthuc, Tiencoc, Maphong)
+                VALUES (@mahopdong, @ngaybatdau, @ngayketthuc, @tiencoc, @maphong);
             `);
-        
-        const result = await pool.request().query('SELECT SCOPE_IDENTITY() AS Mahopdong');
-        const mahopdong = result.recordset[0].Mahopdong;
-        
+        for (let i = 0; i < listkhachthue.length; i++){
+            await pool.request()
+                .input('mahopdong', sql.NVarChar(50), mahopdong)
+                .input('makhachthue', sql.NVarChar(50), listkhachthue[i])
+                .input('ngaythamgia', sql.Date, new Date())
+                .input('lakhachchinh', sql.Bit, i == 0 ? 1 : 0)
+                .query(`
+                    INSERT INTO Hopdong_Khachthue (Mahopdong, Makhachthue, Lakhachchinh, Ngaythamgia) 
+                    VALUES (@mahopdong, @makhachthue, @lakhachchinh, @ngaythamgia)
+                `); 
+        }
         res.status(201).json({ message: 'Hopdong created successfully', mahopdong });
     } catch (err) {
         console.error('Error creating Hopdong:', err);
@@ -91,39 +101,70 @@ const createHopdong = async (req, res) => {
 };
 
 const updateHopdong = async (req, res) => {
-    try {
-        const { ngaybatdau, ngayketthuc, tiencoc, maphong } = req.body;
-        const pool = await getConnection();
-        
-        const result = await pool.request()
-            .input('mahopdong', sql.Int, req.params.id)
-            .input('ngaybatdau', sql.Date, ngaybatdau)
-            .input('ngayketthuc', sql.Date, ngayketthuc)
-            .input('tiencoc', sql.Decimal(18, 2), tiencoc)
-            .input('maphong', sql.NVarChar, maphong)
-            .query(`
-                UPDATE Hopdong 
-                SET Ngaybatdau = @ngaybatdau, Ngayketthuc = @ngayketthuc, 
-                    Tiencoc = @tiencoc, Maphong = @maphong 
-                WHERE Mahopdong = @mahopdong
-            `);
-        
-        if (result.rowsAffected[0] === 0) {
-            return res.status(404).json({ error: 'Hopdong not found' });
-        }
-        res.json({ message: 'Hopdong updated successfully' });
-    } catch (err) {
-        console.error('Error updating Hopdong:', err);
-        res.status(500).json({ error: err.message });
+  const mahopdong = req.params.id;
+  const { ngaybatdau, ngayketthuc, tiencoc, maphong, listkhachthue} = req.body;
+
+  try {
+    const pool = await getConnection();
+
+    // 1. Cập nhật bảng Hopdong
+    const result = await pool.request()
+      .input('mahopdong', sql.NVarChar(50), mahopdong)
+      .input('ngaybatdau', sql.Date, ngaybatdau)
+      .input('ngayketthuc', sql.Date, ngayketthuc || null) // cho phép null
+      .input('tiencoc', sql.Decimal(18, 2), tiencoc)
+      .input('maphong', sql.NVarChar(50), maphong)
+      .query(`
+        UPDATE Hopdong 
+        SET Ngaybatdau = @ngaybatdau, 
+            Ngayketthuc = @ngayketthuc, 
+            Tiencoc = @tiencoc, 
+            Maphong = @maphong 
+        WHERE Mahopdong = @mahopdong
+      `);
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({ error: 'Hopdong not found' });
     }
+
+    // 2. Xoá các dòng cũ trong bảng Hopdong_Khachthue
+    await pool.request()
+      .input('mahopdong', sql.NVarChar(50), mahopdong)
+      .query(`
+        DELETE FROM Hopdong_Khachthue
+        WHERE Mahopdong = @mahopdong
+      `);
+
+    // 3. Thêm lại danh sách khách thuê mới
+    for (let i = 0; i < listkhachthue.length; i++) {
+      await pool.request()
+        .input('mahopdong', sql.NVarChar(50), mahopdong)
+        .input('makhachthue', sql.NVarChar(50), listkhachthue[i])
+        .input('ngaythamgia', sql.Date, new Date())
+        .input('lakhachchinh', sql.Bit, i === 0 ? 1 : 0) // khách đầu là chính
+        .query(`
+          INSERT INTO Hopdong_Khachthue (Mahopdong, Makhachthue, Lakhachchinh, Ngaythamgia) 
+          VALUES (@mahopdong, @makhachthue, @lakhachchinh, @ngaythamgia)
+        `);
+    }
+
+    res.json({ message: 'Hopdong updated successfully' });
+  } catch (err) {
+    console.error('Error updating Hopdong:', err);
+    res.status(500).json({ error: err.message });
+  }
 };
+
 
 const deleteHopdong = async (req, res) => {
     try {
         const pool = await getConnection();
         const result = await pool.request()
-            .input('mahopdong', sql.Int, req.params.id)
-            .query('DELETE FROM Hopdong WHERE Mahopdong = @mahopdong');
+            .input('mahopdong', sql.NVarChar(50), req.params.id)
+            .query(`
+        DELETE FROM Hopdong_Khachthue WHERE Mahopdong = @mahopdong;
+        DELETE FROM Hopdong WHERE Mahopdong = @mahopdong;
+      `);
         
         if (result.rowsAffected[0] === 0) {
             return res.status(404).json({ error: 'Hopdong not found' });
@@ -141,7 +182,7 @@ const addKhachthueToHopdong = async (req, res) => {
         const pool = await getConnection();
         
         await pool.request()
-            .input('mahopdong', sql.Int, mahopdong)
+            .input('mahopdong', sql.NVarChar(50), mahopdong)
             .input('makhachthue', sql.NVarChar, makhachthue)
             .input('lakhachchinh', sql.Bit, lakhachchinh)
             .input('ngaythamgia', sql.Date, ngaythamgia)
@@ -163,7 +204,7 @@ const removeKhachthueFromHopdong = async (req, res) => {
         const pool = await getConnection();
         
         const result = await pool.request()
-            .input('mahopdong', sql.Int, mahopdong)
+            .input('mahopdong', sql.NVarChar(50), mahopdong)
             .input('makhachthue', sql.NVarChar, makhachthue)
             .query('DELETE FROM Hopdong_Khachthue WHERE Mahopdong = @mahopdong AND Makhachthue = @makhachthue');
         

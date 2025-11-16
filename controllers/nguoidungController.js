@@ -3,20 +3,26 @@ const { getConnection, sql } = require('../config/database');
 const login = async (req, res) => {
     try {
         const { tendangnhap, matkhau } = req.body;
+        const makhutroCucBo = process.env.MA_KHU_TRO_CUC_BO;
         
         if (!tendangnhap || !matkhau) {
             return res.status(400).json({ error: 'Vui lòng nhập tên đăng nhập và mật khẩu' });
+        }
+        
+        if (!makhutroCucBo) {
+            return res.status(400).json({error: 'Lỗi mã khu trọ'});
         }
         
         const pool = await getConnection();
         const result = await pool.request()
             .input('tendangnhap', sql.VarChar, tendangnhap)
             .input('matkhau', sql.NVarChar, matkhau)
+            .input('Makhutrocucbo', sql.VarChar, makhutroCucBo)
             .query(`
                 SELECT n.Manguoidung, n.Tendangnhap, n.Vaitro, n.Makhutro, k.Tenkhutro
                 FROM Nguoidung n
                 LEFT JOIN Khutro k ON n.Makhutro = k.Makhutro
-                WHERE n.Tendangnhap = @tendangnhap AND n.Matkhau = @matkhau
+                WHERE n.Tendangnhap = @tendangnhap AND n.Matkhau = @matkhau AND n.Makhutro = @makhutroCucBo 
             `);
         
         if (result.recordset.length === 0) {
